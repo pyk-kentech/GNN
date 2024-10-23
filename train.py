@@ -81,7 +81,8 @@ def main(main_args):
             epoch_iter.set_description(f"Epoch {epoch} | train_loss: {epoch_loss:.4f}")
         torch.save(model.state_dict(), "./checkpoints/checkpoint-{}.pt".format(dataset_name))
         save_dict_path = './eval_result/distance_save_{}.pkl'.format(dataset_name)
-        os.unlink(save_dict_path)
+        if os.path.exists(save_dict_path):
+            os.unlink(save_dict_path)
     return
 
 
