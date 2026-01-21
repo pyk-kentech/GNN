@@ -93,9 +93,12 @@ def collect_root_stats(nodes, edges):
         cc = attr.get("cnt_common", {}) or {}
         total_events[src] += sum(int(x) for x in cc.values() if x)
 
+        first_ts = int(attr.get("first_ts", 0))
+
         rf = attr.get("rare_flags", {}) or {}
-        if any(bool(v) for v in rf.values()):
-            first_ts = int(attr.get("first_ts", 0))
+        rs = attr.get("rare_support", {}) or {}
+        is_rare = any(rf.values()) or (sum(rs.values()) > 0)
+        if is_rare:
             prev = earliest_rare_ts.get(src)
             if prev is None or first_ts < prev:
                 earliest_rare_ts[src] = first_ts
@@ -145,11 +148,15 @@ def edge_weight(attr: Dict[str, Any], min_ts: int, max_ts: int, a: float, b: flo
     time_score = (last_ts - min_ts) / (max_ts - min_ts) if max_ts > min_ts else 0.0
 
     rf = attr.get("rare_flags", {}) or {}
+    rs = attr.get("rare_support", {}) or {}
     rare_score = 0.0
-    for ev, flag in rf.items():
-        if not flag:
-            continue
-        rare_score += IMPORTANT_RARE_EVENTS.get(ev, 1.0)
+    if rf:
+        for ev, is_rare in rf.items():
+            if is_rare:
+                rare_score += IMPORTANT_RARE_EVENTS.get(ev, 1.0)
+    else:
+        for ev, cnt in rs.items():
+            rare_score += cnt * IMPORTANT_RARE_EVENTS.get(ev, 1.0)
 
     return a * w_count + b * time_score + c * rare_score
 
