@@ -40,3 +40,10 @@ logs/
 *.pth
 *.h5
 *.tar.gz
+# editor backups / artifacts
+*.save
+*.swp
+*.swo
+*.tmp
+*.png
+*.svg
