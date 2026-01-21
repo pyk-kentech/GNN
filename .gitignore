@@ -22,3 +22,21 @@ theia.txt
 ## cadets
 ta1-cadets-e3-official*
 cadets.txt
+
+# --- local env / notebooks ---
+.venv/
+.ipynb_checkpoints/
+
+# --- experiment outputs / data ---
+data/
+checkpoints/
+eval_result/
+figs/
+logs/
+
+# --- large binaries ---
+*.pkl
+*.pt
+*.pth
+*.h5
+*.tar.gz
