@@ -9,6 +9,7 @@ from typing import Any, Dict, List, Tuple, Optional
 import yaml
 import pandas as pd
 
+from utils.mitre_ttp_mapper import TTPMapper
 SYSCALL_TO_EVENT = {
     "execve": "EVENT_EXECUTE",
     "execveat": "EVENT_EXECUTE",
@@ -182,7 +183,8 @@ def basic_path_features(path: List[str], dag_edge_map: Dict[Tuple[str, str], Dic
         "rare_density_dag": rare_cnt / max(1,length),
     }
 
-def project_sigma_to_path(path: List[str], pp_edges, rules: List[SigmaRule], mode: str) -> Dict[str, Any]:
+def project_sigma_to_path(path: List[str], pp_edges, rules: List[SigmaRule], mode: str,
+                          ttp_mapper: TTPMapper) -> Dict[str, Any]:
     tag_hits = Counter()
     rule_hits = Counter()
 
@@ -197,9 +199,27 @@ def project_sigma_to_path(path: List[str], pp_edges, rules: List[SigmaRule], mod
                 for t in rule.tags:
                     tag_hits[t] += 1
 
-    out = {f"{t}_hits": int(c) for t,c in tag_hits.items()}
+    out = {f"{t}_hits": int(c) for t, c in tag_hits.items()}
     out["sigma_rule_hits_total"] = int(sum(rule_hits.values()))
     out["sigma_rules_distinct"] = int(len(rule_hits))
+    if ttp_mapper:
+        tactic_hits = Counter()
+        tactic_name_hits = Counter()
+        technique_hits = Counter()
+        technique_name_hits = Counter()
+        for tag, count in tag_hits.items():
+            for info in ttp_mapper.map_tags([tag]):
+                if info.tactic:
+                    tactic_hits[info.tactic] += count
+                if info.tactic_name:
+                    tactic_name_hits[info.tactic_name] += count
+                technique_hits[info.technique_id] += count
+                if info.name:
+                    technique_name_hits[info.name] += count
+        out["ttp_tactic_hits_total"] = int(sum(tactic_hits.values()))
+        out["ttp_tactic_name_hits_total"] = int(sum(tactic_name_hits.values()))
+        out["ttp_technique_hits_total"] = int(sum(technique_hits.values()))
+        out["ttp_technique_name_hits_total"] = int(sum(technique_name_hits.values()))
     return out
 
 def main():
@@ -212,6 +232,9 @@ def main():
     ap.add_argument("--out-report", required=True)
     ap.add_argument("--max-depth", type=int, default=10)
     ap.add_argument("--top-k-paths", type=int, default=200)
+    ap.add_argument("--mitre-gml", help="MITRE ATT&CK GML path for tactic/technique mapping")
+    ap.add_argument("--mitre-link-map", help="CSV link map for MITRE GML (optional)")
+    ap.add_argument("--keag-root", help="Knowledge-enhanced-Attack-Graph root (for default MITRE GML lookup)")
     args = ap.parse_args()
 
     rules = load_sigma_rules(args.sigma_dir)
@@ -228,11 +251,12 @@ def main():
     dag_edge_map = {(u,v): rec for (u,v,rec) in dag_edges}
     pp_edges = load_pp_edges(args.pp_pkl)
 
-    rows=[]
+    ttp_mapper = TTPMapper(args.mitre_gml, args.mitre_link_map, args.keag_root)
+    rows = []
     for root in roots:
         for p in enumerate_paths(children, root, args.max_depth):
             base = basic_path_features(p, dag_edge_map)
-            sig = project_sigma_to_path(p, pp_edges, usable, args.mode)
+            sig = project_sigma_to_path(p, pp_edges, usable, args.mode, ttp_mapper)
             rows.append({
                 "root": root,
                 "leaf": p[-1],
