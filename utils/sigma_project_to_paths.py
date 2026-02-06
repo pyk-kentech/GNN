@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 from __future__ import annotations
 
-import argparse, json, os, pickle, re
+import argparse, json, os, pickle, re, sys
+from pathlib import Path
 from collections import defaultdict, Counter
 from dataclasses import dataclass
 from typing import Any, Dict, List, Tuple, Optional
@@ -9,6 +10,7 @@ from typing import Any, Dict, List, Tuple, Optional
 import yaml
 import pandas as pd
 
+sys.path.append(str(Path(__file__).resolve().parents[1]))
 from utils.mitre_ttp_mapper import TTPMapper
 SYSCALL_TO_EVENT = {
     "execve": "EVENT_EXECUTE",
